@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
+<title>Tres en Raya</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-1:#160f2e;
+    --bg-2:#22154a;
+    --bg-3:#2c1a63;
+    --panel:#1e1440;
+    --panel-edge:rgba(255,255,255,.08);
+    --cell:#2a1e57;
+    --cell-hover:#38296f;
+    --text:#fbf7ff;
+    --muted:#a89bd6;
+    --x:#00f5d4;
+    --x-glow:rgba(0,245,212,.55);
+    --o:#ff4d8d;
+    --o-glow:rgba(255,77,141,.55);
+    --win:#ffd23f;
+    --win-glow:rgba(255,210,63,.6);
+  }
+
+  *{box-sizing:border-box;}
+
+  html, body{ height:100%; }
+
+  body{
+    margin:0;
+    height:100dvh;
+    display:grid;
+    place-items:center;
+    background:
+      radial-gradient(circle at 15% 10%, rgba(0,245,212,.10), transparent 40%),
+      radial-gradient(circle at 85% 85%, rgba(255,77,141,.12), transparent 45%),
+      linear-gradient(160deg, var(--bg-1), var(--bg-2) 50%, var(--bg-3));
+    font-family:'Nunito', system-ui, sans-serif;
+    color:var(--text);
+    padding:clamp(10px, 3vw, 24px);
+    overflow:hidden;
+    position:relative;
+  }
+
+  /* estrellitas de fondo */
+  .stars{
+    position:fixed; inset:0; pointer-events:none; z-index:0;
+    background-image:
+      radial-gradient(2px 2px at 10% 20%, rgba(255,255,255,.35), transparent),
+      radial-gradient(2px 2px at 80% 15%, rgba(255,255,255,.25), transparent),
+      radial-gradient(1.5px 1.5px at 40% 70%, rgba(255,255,255,.3), transparent),
+      radial-gradient(1.5px 1.5px at 65% 45%, rgba(255,255,255,.2), transparent),
+      radial-gradient(2px 2px at 90% 80%, rgba(255,255,255,.25), transparent),
+      radial-gradient(1.5px 1.5px at 25% 90%, rgba(255,255,255,.2), transparent);
+    animation: twinkle 4s ease-in-out infinite alternate;
+  }
+  @keyframes twinkle{ from{opacity:.5;} to{opacity:1;} }
+
+  .game{
+    position:relative;
+    z-index:1;
+    width:min(88vw, 55dvh, 400px);
+    max-height:96dvh;
+    display:flex;
+    flex-direction:column;
+    background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.01)), var(--panel);
+    border:1px solid var(--panel-edge);
+    border-radius:clamp(16px, 4vw, 26px);
+    padding:clamp(12px, 3vw, 24px) clamp(12px, 3vw, 20px) clamp(10px, 2.5vw, 20px);
+    box-shadow:
+      0 25px 60px rgba(0,0,0,.5),
+      0 0 0 1px rgba(255,255,255,.04) inset;
+    overflow:hidden;
+  }
+
+  .glow-ring{
+    position:absolute;
+    inset:-2px;
+    border-radius:28px;
+    padding:2px;
+    background:conic-gradient(from var(--angle,0deg), var(--x), var(--win), var(--o), var(--x));
+    -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite:xor;
+    mask-composite:exclude;
+    z-index:-1;
+    animation: spin 6s linear infinite;
+    opacity:.85;
+  }
+  @property --angle{ syntax:'<angle>'; inherits:false; initial-value:0deg; }
+  @keyframes spin{ to{ --angle:360deg; } }
+
+  h1{
+    margin:0 0 2px;
+    font-family:'Baloo 2', sans-serif;
+    font-weight:800;
+    font-size:clamp(1.05rem, 5vw, 1.6rem);
+    text-align:center;
+    letter-spacing:.3px;
+    background:linear-gradient(90deg, var(--x), var(--o));
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+  }
+
+  .subtitle{
+    text-align:center;
+    color:var(--muted);
+    font-size:clamp(.6rem, 2vw, .8rem);
+    font-weight:700;
+    margin-bottom:clamp(6px, 2vw, 14px);
+    letter-spacing:.5px;
+    text-transform:uppercase;
+  }
+
+  .status{
+    text-align:center;
+    margin-bottom:clamp(6px, 2vw, 14px);
+    min-height:clamp(20px, 5vw, 30px);
+    font-family:'Baloo 2', sans-serif;
+    font-weight:700;
+    font-size:clamp(.8rem, 3.2vw, 1.1rem);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    transition:transform .15s ease;
+  }
+  .status.pulse{ animation: popText .35s ease; }
+  @keyframes popText{ 0%{transform:scale(.85);} 60%{transform:scale(1.08);} 100%{transform:scale(1);} }
+
+  .turn-dot{
+    width:12px; height:12px; border-radius:50%;
+    box-shadow:0 0 10px 2px currentColor;
+  }
+
+  .board{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:clamp(6px, 1.8vw, 10px);
+    margin-bottom:clamp(8px, 2.5vw, 16px);
+    flex:0 1 auto;
+    min-height:0;
+  }
+
+  .cell{
+    aspect-ratio:1/1;
+    border:none;
+    border-radius:clamp(10px, 3vw, 16px);
+    background:var(--cell);
+    color:var(--text);
+    font-family:'Baloo 2', sans-serif;
+    font-size:clamp(1.5rem, 8vw, 2.6rem);
+    font-weight:800;
+    cursor:pointer;
+    transition:background .15s ease, transform .12s ease, box-shadow .15s ease;
+    display:grid;
+    place-items:center;
+    user-select:none;
+    position:relative;
+  }
+  .cell:hover:not(:disabled){
+    background:var(--cell-hover);
+    transform:translateY(-2px);
+  }
+  .cell:active:not(:disabled){ transform:translateY(0) scale(.96); }
+  .cell:disabled{ cursor:not-allowed; }
+
+  .cell.x{ color:var(--x); text-shadow:0 0 18px var(--x-glow); }
+  .cell.o{ color:var(--o); text-shadow:0 0 18px var(--o-glow); }
+
+  .cell.placed{ animation: dropIn .28s cubic-bezier(.34,1.56,.64,1); }
+  @keyframes dropIn{
+    0%{ transform:scale(.3) rotate(-8deg); opacity:0; }
+    100%{ transform:scale(1) rotate(0); opacity:1; }
+  }
+
+  .cell.win{
+    background:rgba(255,210,63,.14);
+    box-shadow:0 0 0 2px var(--win) inset, 0 0 22px var(--win-glow);
+    animation: winPulse 1s ease-in-out infinite;
+  }
+  @keyframes winPulse{
+    0%,100%{ box-shadow:0 0 0 2px var(--win) inset, 0 0 14px var(--win-glow); }
+    50%{ box-shadow:0 0 0 2px var(--win) inset, 0 0 30px var(--win-glow); }
+  }
+
+  .board.shake{ animation: shake .4s ease; }
+  @keyframes shake{
+    0%,100%{ transform:translateX(0); }
+    20%{ transform:translateX(-6px); }
+    40%{ transform:translateX(6px); }
+    60%{ transform:translateX(-4px); }
+    80%{ transform:translateX(4px); }
+  }
+
+  .controls{ display:flex; gap:clamp(6px, 2vw, 10px); }
+
+  button.ctrl{
+    flex:1;
+    border:none;
+    border-radius:clamp(10px, 3vw, 14px);
+    padding:clamp(9px, 2.5vw, 12px) 10px;
+    font-family:'Baloo 2', sans-serif;
+    font-weight:700;
+    font-size:clamp(.78rem, 3vw, .95rem);
+    cursor:pointer;
+    color:#160f2e;
+    background:linear-gradient(135deg, var(--x), #6be8ff);
+    transition:filter .15s ease, transform .1s ease;
+    box-shadow:0 6px 16px var(--x-glow);
+  }
+  button.ctrl:hover{ filter:brightness(1.08); transform:translateY(-1px); }
+  button.ctrl:active{ transform:translateY(0); }
+
+  button.ctrl.secondary{
+    background:transparent;
+    color:var(--muted);
+    box-shadow:none;
+    border:1.5px solid var(--panel-edge);
+  }
+  button.ctrl.secondary:hover{ color:var(--text); border-color:var(--o); }
+
+  .score{
+    margin-top:clamp(6px, 2vw, 14px);
+    display:flex;
+    justify-content:center;
+    gap:clamp(10px, 3vw, 18px);
+    font-family:'Baloo 2', sans-serif;
+    font-weight:700;
+    font-size:clamp(.7rem, 2.6vw, .9rem);
+  }
+  .score span{ display:flex; align-items:center; gap:6px; }
+  .score .x-score{ color:var(--x); }
+  .score .o-score{ color:var(--o); }
+  .score .d-score{ color:var(--muted); }
+
+  /* confeti */
+  .confetti{
+    position:fixed;
+    top:-10px;
+    width:9px; height:14px;
+    z-index:5;
+    pointer-events:none;
+    border-radius:2px;
+    animation: fall linear forwards;
+  }
+  @keyframes fall{
+    to{ transform:translateY(110vh) rotate(540deg); opacity:.9; }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important; }
+  }
+</style>
+</head>
+<body>
+  <div class="stars"></div>
+
+  <main class="game">
+    <div class="glow-ring"></div>
+    <h1>Tres en Raya</h1>
+    <p class="subtitle">¡A ganar se ha dicho!</p>
+    <div id="status" class="status">
+      <span class="turn-dot" id="turnDot" style="background:var(--x); color:var(--x);"></span>
+      <span id="statusText">Turno de X</span>
+    </div>
+
+    <section class="board" id="board"></section>
+
+    <div class="controls">
+      <button class="ctrl" id="restartBtn">🔁 Reiniciar</button>
+      <button class="ctrl secondary" id="clearScoreBtn">Limpiar marcador</button>
+    </div>
+
+    <div class="score" id="score">
+      <span class="x-score">✕ 0</span>
+      <span class="o-score">◯ 0</span>
+      <span class="d-score">🤝 0</span>
+    </div>
+  </main>
+
+<script>
+  const boardEl = document.getElementById("board");
+  const statusEl = document.getElementById("status");
+  const statusText = document.getElementById("statusText");
+  const turnDot = document.getElementById("turnDot");
+  const scoreEl = document.getElementById("score");
+  const restartBtn = document.getElementById("restartBtn");
+  const clearScoreBtn = document.getElementById("clearScoreBtn");
+
+  let board = Array(9).fill("");
+  let currentPlayer = "X";
+  let gameOver = false;
+  let score = { X: 0, O: 0, D: 0 };
+
+  const winLines = [
+    [0,1,2],[3,4,5],[6,7,8],
+    [0,3,6],[1,4,7],[2,5,8],
+    [0,4,8],[2,4,6]
+  ];
+
+  const colorFor = p => p === "X" ? "var(--x)" : "var(--o)";
+
+  function createBoard() {
+    boardEl.innerHTML = "";
+    board.forEach((_, i) => {
+      const cell = document.createElement("button");
+      cell.className = "cell";
+      cell.dataset.index = i;
+      cell.addEventListener("click", onCellClick);
+      boardEl.appendChild(cell);
+    });
+    render();
+  }
+
+  function onCellClick(e) {
+    const i = Number(e.currentTarget.dataset.index);
+    if (gameOver || board[i]) return;
+
+    board[i] = currentPlayer;
+
+    const winnerData = getWinner();
+    if (winnerData) {
+      gameOver = true;
+      score[currentPlayer]++;
+      setStatus(`¡${currentPlayer === "X" ? "✕" : "◯"} gana la partida! 🎉`, colorFor(currentPlayer));
+      highlightWin(winnerData.line);
+      launchConfetti(currentPlayer === "X" ? getVarColor("--x") : getVarColor("--o"));
+    } else if (board.every(c => c)) {
+      gameOver = true;
+      score.D++;
+      setStatus("¡Empate! Nadie se rinde 🤝", getVarColor("--muted"));
+      boardEl.classList.add("shake");
+      setTimeout(()=>boardEl.classList.remove("shake"), 400);
+    } else {
+      currentPlayer = currentPlayer === "X" ? "O" : "X";
+      setStatus(`Turno de ${currentPlayer}`, colorFor(currentPlayer));
+    }
+
+    render(i);
+    updateScore();
+  }
+
+  function setStatus(text, color){
+    statusText.textContent = text;
+    turnDot.style.background = color;
+    turnDot.style.color = color;
+    statusEl.classList.remove("pulse");
+    void statusEl.offsetWidth;
+    statusEl.classList.add("pulse");
+  }
+
+  function getVarColor(name){
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+
+  function getWinner() {
+    for (const line of winLines) {
+      const [a,b,c] = line;
+      if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+        return { player: board[a], line };
+      }
+    }
+    return null;
+  }
+
+  function highlightWin(line) {
+    line.forEach(i => boardEl.children[i].classList.add("win"));
+  }
+
+  function render(justPlaced) {
+    [...boardEl.children].forEach((cell, i) => {
+      const value = board[i];
+      cell.textContent = value === "X" ? "✕" : value === "O" ? "◯" : "";
+      cell.disabled = !!value || gameOver;
+      cell.classList.remove("x","o","placed");
+      if (value) {
+        cell.classList.add(value.toLowerCase());
+        if (i === justPlaced) cell.classList.add("placed");
+      }
+    });
+  }
+
+  function updateScore() {
+    scoreEl.innerHTML = `
+      <span class="x-score">✕ ${score.X}</span>
+      <span class="o-score">◯ ${score.O}</span>
+      <span class="d-score">🤝 ${score.D}</span>
+    `;
+  }
+
+  function restartGame() {
+    board = Array(9).fill("");
+    currentPlayer = "X";
+    gameOver = false;
+    setStatus("Turno de X", getVarColor("--x"));
+    createBoard();
+  }
+
+  function clearScore() {
+    score = { X: 0, O: 0, D: 0 };
+    updateScore();
+    restartGame();
+  }
+
+  function launchConfetti(color){
+    const colors = [color, getVarColor("--win"), getVarColor("--x"), getVarColor("--o")];
+    for (let i=0; i<40; i++){
+      const piece = document.createElement("div");
+      piece.className = "confetti";
+      piece.style.left = Math.random()*100 + "vw";
+      piece.style.background = colors[Math.floor(Math.random()*colors.length)];
+      piece.style.animationDuration = (1.6 + Math.random()*1.2) + "s";
+      piece.style.opacity = .7 + Math.random()*.3;
+      document.body.appendChild(piece);
+      setTimeout(()=>piece.remove(), 3000);
+    }
+  }
+
+  restartBtn.addEventListener("click", restartGame);
+  clearScoreBtn.addEventListener("click", clearScore);
+
+  createBoard();
+  updateScore();
+</script>
+</body>
+</html>
